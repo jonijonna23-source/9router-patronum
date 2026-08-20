@@ -128,7 +128,7 @@ function truncate(s, n) {
  * Map the OpenAI-style request body into the exact shape Qoder expects.
  */
 async function buildQoderRequestBody({ model, body, credentials, log, proxyOptions, signal }) {
-  const qoderKey = String(model || "").replace(/^qoder\//, "");
+  let qoderKey = String(model || "").replace(/^qoder\//, "");
   
   // Fetch model config from dynamic API instead of relying on static QODER_MODEL_MAP.
   // This allows support for new Qoder models (e.g., qmodel_latest) without code changes.
@@ -149,7 +149,11 @@ async function buildQoderRequestBody({ model, body, credentials, log, proxyOptio
       const fallbackSrc = FALLBACK_CONFIG_MAP[qoderKey];
       console.log("QODER FALLBACK: fallbackSrc =", fallbackSrc, "| has fallback src?", fallbackSrc && refreshed?.rawConfigs.get(fallbackSrc) ? "YES" : "NO");
       if (fallbackSrc && refreshed?.rawConfigs.get(fallbackSrc)) {
-        modelConfig = { ...refreshed.rawConfigs.get(fallbackSrc), key: qoderKey };
+        // Keep the upstream model key: session_id, X-Model-Key, and
+        // model_config.key must all be a real upstream model id, otherwise
+        // Qoder rejects with "Session blocked" (416).
+        modelConfig = { ...refreshed.rawConfigs.get(fallbackSrc), key: fallbackSrc };
+        qoderKey = fallbackSrc;
       } else {
         throw new Error(
           `qoder: model_config for "${qoderKey}" not yet known (run a model list fetch or check upstream connectivity)`,
