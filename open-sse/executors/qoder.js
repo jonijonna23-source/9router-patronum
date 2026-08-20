@@ -164,6 +164,18 @@ async function buildQoderRequestBody({ model, body, credentials, log, proxyOptio
     }
   }
 
+  // Max out context/output for models whose upstream config supports 1M
+  // input (context_config preset "1M"). cmodel resolves to qmodel_38max
+  // via the fallback above, so it inherits the same boost.
+  const MAX_CFG = {
+    cmodel: { max_input_tokens: 1_000_000, max_output_tokens: 65_536 },
+    gmodel: { max_input_tokens: 1_000_000, max_output_tokens: 65_536 },
+    dfmodel: { max_input_tokens: 1_000_000, max_output_tokens: 65_536 },
+    qmodel_38max: { max_input_tokens: 1_000_000, max_output_tokens: 65_536 },
+  };
+  const boost = MAX_CFG[qoderKey];
+  if (boost) modelConfig = { ...modelConfig, ...boost };
+
   const { messages, systemText } = normalizeMessages(body.messages || []);
   const tools = body.tools;
   const isReasoning = !!modelConfig.is_reasoning;
